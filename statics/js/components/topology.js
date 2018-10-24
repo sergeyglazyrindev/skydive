@@ -1,8 +1,6 @@
 /* jshint multistr: true */
 
-var topologyComponent
-
-var TopologyComponent = {
+var TopologyComponentOldApproach = {
 
   name: 'topology',
 
@@ -262,20 +260,20 @@ var TopologyComponent = {
         LinkFlags: false,
         'Neutron.IPV4': false,
         'Neutron.IPV6': false,
-      },
+      }
     };
   },
 
   mounted: function() {
-    topologyComponent = this;
     var self = this;
-
+    window.topologyComponent = this;	
     // run d3 layout
-    this.graph = new Graph(websocket, function(err) {
+    this.graph = new Graph(websocketHandler, function(err) {
       this.$error({
         message: err
       });
     }.bind(this));
+    this.syncTopo = debounce(this.graph.syncRequest.bind(this.graph), 300);
 
     this.layout = new TopologyGraphLayout(this, ".topology-d3");
 
@@ -335,7 +333,7 @@ var TopologyComponent = {
       this.layout.autoExpand(true);
     } else {
       this.collapse();
-      websocket.addConnectHandler(function() {
+      websocketHandler.addConnectHandler(function() {
         self.collapse();
       });
     }
@@ -348,7 +346,7 @@ var TopologyComponent = {
       $('.topology-legend').remove();
     }
 
-    websocket.addConnectHandler(function() {
+    websocketHandler.addConnectHandler(function() {
       if (self.topologyFilter !== '') {
         self.topologyFilterQuery();
       }
@@ -474,6 +472,12 @@ var TopologyComponent = {
   },
 
   methods: {
+
+    onUpdatedHosts: function(hosts) {
+      this.selectedHost = null;
+      console.log('Updated hosts', hosts);
+      this.hosts = hosts;
+    },
 
     onPostInit: function() {
       setTimeout(this.emphasize.bind(this), 1000);
@@ -1220,7 +1224,9 @@ Graph.prototype = {
     if (filter) {
       obj.GremlinFilter = filter + ".SubGraph()";
     }
+    // obj.GremlinFilter = "G.V().Has('Host', 'sglazyrin-VirtualBox').SubGraph()";
     var msg = {"Namespace": "Graph", "Type": "SyncRequest", "Obj": obj};
+    console.log('send websocket msg', msg);
     this.websocket.send(msg);
   },
 
@@ -1229,11 +1235,14 @@ Graph.prototype = {
       console.log("Skipping message " + msg.Type);
       return;
     }
-
     var node, edge;
     switch(msg.Type) {
       case "SyncReply":
-        this.initFromSyncMessage(msg);
+        if (window.layoutConfig.getValue('useHardcodedData')) {
+            this.initFromSyncMessage(window.detailedTopology);
+        } else {
+            this.initFromSyncMessage(msg);
+        }
         break;
 
       case "Sync":

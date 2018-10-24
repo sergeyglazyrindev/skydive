@@ -178,12 +178,12 @@ Vue.component('capture-list', {
   },
 
   created: function() {
-    websocket.addMsgHandler('OnDemandNotification', this.onMsg.bind(this));
-    websocket.addConnectHandler(this.init.bind(this));
+    websocketHandler.addMsgHandler('OnDemandNotification', this.onMsg.bind(this));
+    websocketHandler.addConnectHandler(this.init.bind(this));
   },
 
   beforeDestroy: function() {
-    websocket.delConnectHandler(this.init.bind(this));
+    websocketHandler.delConnectHandler(this.init.bind(this));
   },
 
   computed: {

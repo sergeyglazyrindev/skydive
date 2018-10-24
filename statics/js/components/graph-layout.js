@@ -234,6 +234,7 @@ var TopologyGraphLayout = function(vm, selector) {
   this.handlers = [];
 
   this.queue = new Queue();
+  // @todo move to the new package
   this.queue.await(function() {
     if (self.invalid) {
       if (self._autoExpand) {

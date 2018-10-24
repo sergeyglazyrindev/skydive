@@ -34,7 +34,7 @@ Vue.component('tab-pane', {
 
   beforeDestroy: function() {
     this.$parent.removePane(this);
-  },
+  }
 
 });
 
@@ -58,7 +58,7 @@ Vue.component('tabs', {
     active: {
       type: Number,
       default: 0
-    },
+    }
 
   },
 

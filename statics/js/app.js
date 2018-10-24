@@ -1,4 +1,6 @@
-var websocket = new WSHandler();
+window.testNewUI = window.location.href.indexOf('newui_approach=1') !== -1;
+
+var websocketHandler = new WSHandler();
 
 var store = new Vuex.Store({
 
@@ -141,12 +143,12 @@ var routes = [
       created: function() {
         setCookie("authtok", "", -1);
         setCookie("permissions", "", -1);
-        websocket.disconnect();
+        websocketHandler.disconnect();
         this.$store.commit('logout');
       }
     }
   },
-  { path: '/topology', component: TopologyComponent, props: (route) => ({ query: route.query }) },
+  { path: '/topology', component: window.testNewUI ? TopologyComponentNewApproach : TopologyComponentOldApproach, props: (route) => ({ query: route.query }) },
   { path: '/preference', component: PreferenceComponent },
   { path: '/status', component: StatusComponent },
   { path: '*', redirect: '/topology' }
@@ -181,9 +183,9 @@ var app = new Vue({
 
     this.setThemeFromConfig();
 
-    websocket.addConnectHandler(self.onConnected.bind(self));
-    websocket.addDisconnectHandler(self.onDisconnected.bind(self));
-    websocket.addErrorHandler(self.onError.bind(self));
+    websocketHandler.addConnectHandler(self.onConnected.bind(self));
+    websocketHandler.addDisconnectHandler(self.onDisconnected.bind(self));
+    websocketHandler.addErrorHandler(self.onError.bind(self));
 
     this.checkAPI();
 
@@ -211,7 +213,7 @@ var app = new Vue({
       if (newVal === true) {
         this.checkAPI();
         router.push('/topology');
-        websocket.connect();
+        websocketHandler.connect();
 
         if (!this.interval)
           this.interval = setInterval(this.checkAPI, 5000);
@@ -263,14 +265,14 @@ var app = new Vue({
       this.$error({message: 'Disconnected'});
 
       if (this.$store.state.logged)
-        setTimeout(function(){websocket.connect();}, 1000);
+        setTimeout(function(){websocketHandler.connect();}, 1000);
     },
 
     onError: function() {
       if (this.$store.state.connected)
         this.$store.commit('disconnected');
 
-      setTimeout(function(){websocket.connect();}, 1000);
+      setTimeout(function(){websocketHandler.connect();}, 1000);
     },
 
     camelize: function(input) {

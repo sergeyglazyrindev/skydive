@@ -3,10 +3,7 @@ function WSHandler() {
   this.conn = null;
   this.connected = null;
   this.disconnected = null;
-  this.msgHandlers = {};
-  this.discHandlers = [];
-  this.connHandlers = [];
-  this.errorHandlers = [];
+  this.eventEmitter = new window.TopologyORegistry.eventEmitter();
 }
 
 WSHandler.prototype = {
@@ -26,15 +23,11 @@ WSHandler.prototype = {
 
     this.connected = $.Deferred();
     this.connected.then(function() {
-      self.connHandlers.forEach(function(callback) {
-        callback();
-      });
+      self.eventEmitter.emit('connected');      
     });
     this.disconnected = $.Deferred();
     this.disconnected.then(function() {
-      self.discHandlers.forEach(function(callback) {
-        callback();
-      });
+      self.eventEmitter.emit('disconnected');      
     });
     this.connecting = true;
 
@@ -59,55 +52,54 @@ WSHandler.prototype = {
     };
     this.conn.onmessage = function(r) {
       var msg = JSON.parse(r.data);
-      if (self.msgHandlers[msg.Namespace]) {
-        self.msgHandlers[msg.Namespace].forEach(function(callback) {
-          callback(msg);
-        });
-      }
+      console.log('Websocket message', msg);
+      self.eventEmitter.emit('message.' + msg.Namespace, msg);
     };
     this.conn.onerror = function(r) {
-      self.errorHandlers.forEach(function(callback) {
-        callback();
-      });
+      self.eventEmitter.emit('error');      
     };
   },
 
   disconnect: function() {
-    this.conn.close();
+    this.conn && this.conn.close();
   },
 
   addMsgHandler: function(namespace, callback) {
-    if (! this.msgHandlers[namespace]) {
-      this.msgHandlers[namespace] = [];
-    }
-    this.msgHandlers[namespace].push(callback);
+    this.eventEmitter.on('message.' + namespace, callback);
   },
 
-  addConnectHandler: function(callback) {
-    this.connHandlers.push(callback);
-    if (this.connected !== null) {
-      this.connected.then(function() {
-        callback();
-      });
+  removeMsgHandler: function(namespace, callback) {
+    this.eventEmitter.removeListener('message.' + namespace, callback);
+  },
+
+  addConnectHandler: function(callback, once) {
+    var self = this;
+    if (!this.connecting && this.conn && this.conn.readyState == WebSocket.OPEN) {
+      callback();
+      return;
+    }
+    if (once) {
+      this.eventEmitter.once('connected', callback);
+    } else {
+      this.eventEmitter.on('connected', callback);
     }
   },
 
   delConnectHandler: function(callback) {
-    this.connHandlers.splice(
-      this.connHandlers.indexOf(callback), 1);
+    this.eventEmitter.removeListener('disconnected', callback);
   },
 
   addDisconnectHandler: function(callback) {
-    this.discHandlers.push(callback);
-    if (this.disconnected !== null) {
-      this.disconnected.then(function() {
-        callback();
-      });
+    var self = this;
+    if (!this.connecting && this.conn && this.conn.readyState == WebSocket.OPEN) {
+      self.eventEmitter.emit('disconnected');      
+      return;
     }
+    this.eventEmitter.on('disconnected', callback);
   },
 
   addErrorHandler: function(callback) {
-    this.errorHandlers.push(callback);
+    this.eventEmitter.on('error', callback);
   },
 
   send: function(msg) {
